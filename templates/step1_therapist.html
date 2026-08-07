@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Choose Therapist</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</head>
+<body>
+  <header>
+    <h1>Welcome to Spa</h1>
+    <nav>
+      <a href="{{ url_for('home') }}">Home</a>
+      <a href="{{ url_for('therapist') }}">Book Now</a>
+      <a href="{{ url_for('admin') }}">Admin</a>
+    </nav>
+  </header>
+
+  <!-- Progress bar -->
+  <div class="progress-container">
+    <div class="progress-step {% if step == 1 %}active{% endif %}">1. Therapist</div>
+    <div class="progress-step {% if step == 2 %}active{% endif %}">2. Treatment</div>
+    <div class="progress-step {% if step == 3 %}active{% endif %}">3. Date & Time</div>
+    <div class="progress-step {% if step == 4 %}active{% endif %}">4. Your Details</div>
+    <div class="progress-step {% if step == 5 %}active{% endif %}">5. Payment</div>
+  </div>
+
+  <h2>Choose Your Therapist</h2>
+  <!-- IMPORTANT: action points to 'treatment' route -->
+  <form method="POST" action="{{ url_for('therapist') }}">
+    <div class="card">
+      <input type="radio" name="therapist" value="Maya Chen" required>
+      <label>Maya Chen – Deep Tissue</label>
+    </div><br>
+    <div class="card">
+      <input type="radio" name="therapist" value="Elena Osei" required>
+      <label>Elena Osei – Swedish</label>
+    </div><br>
+    <button type="submit">Continue</button>
+  </form>
+</body>
+</html>

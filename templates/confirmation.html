@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Booking Confirmation</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <h2>Booking Confirmed!</h2>
+  <p>Thank you, {{ booking.customer_name }}.</p>
+  <p>Your appointment with {{ booking.therapist }} for a {{ booking.massage_type }} massage is booked.</p>
+  <p>Date: {{ booking.date }} | Time: {{ booking.time }}</p>
+  <p>Payment Method: {{ booking.payment_method }} | Status: {{ booking.payment_status }}</p>
+  <a href="{{ url_for('home') }}">Back to Home</a>
+</body>
+</html>

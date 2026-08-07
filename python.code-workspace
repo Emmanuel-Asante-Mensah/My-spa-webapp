@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "../python"
+		},
+		{
+			"path": "../my_web_app"
+		}
+	],
+	"settings": {
+		"powershell.cwd": "my_web_app"
+	}
+}

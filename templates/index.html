@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Spa Home</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</head>
+<body>
+  <header>
+    <h1>Welcome to Spa</h1>
+    <nav>
+      <a href="{{ url_for('home') }}">Home</a>
+      <a href="{{ url_for('therapist') }}">Book Now</a>
+      <a href="{{ url_for('admin') }}">Admin</a>
+    </nav>
+  </header>
+</body>
+</html>
