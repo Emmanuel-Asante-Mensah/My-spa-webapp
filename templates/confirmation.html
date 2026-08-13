@@ -9,7 +9,15 @@
   <p>Thank you, {{ booking.customer_name }}.</p>
   <p>Your appointment with {{ booking.therapist }} for a {{ booking.massage_type }} massage is booked.</p>
   <p>Date: {{ booking.date }} | Time: {{ booking.time }}</p>
-  <p>Payment Method: {{ booking.payment_method }} | Status: {{ booking.payment_status }}</p>
+  <p>Payment Method: {{ booking.payment_method }} | Payment Status:
+    <span class="status-badge status-{{ booking.payment_status|lower }}">{{ booking.payment_status }}</span>
+  </p>
+  <p>Service Status:
+    <span class="status-badge status-{{ booking.service_status|lower }}">{{ booking.service_status }}</span>
+  </p>
+  {% if booking.payment_method == 'In Person' %}
+  <p><em>Please settle payment at the spa when you arrive for your appointment.</em></p>
+  {% endif %}
   <a href="{{ url_for('home') }}">Back to Home</a>
 </body>
 </html>

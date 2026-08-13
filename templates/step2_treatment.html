@@ -24,18 +24,14 @@
 
   <h2>Select Massage Type</h2>
   <form method="POST" action="{{ url_for('treatment') }}">
-    <div>
-      <input type="radio" name="massage" value="Swedish" required> Swedish – Gentle relaxation
+    {% for t in treatments %}
+    <div class="card">
+      <input type="radio" name="massage" value="{{ t.name }}" required>
+      <label>{{ t.name }}{% if t.description %} – {{ t.description }}{% endif %}</label>
     </div>
-    <div>
-      <input type="radio" name="massage" value="Deep Tissue" required> Deep Tissue – Muscle recovery
-    </div>
-    <div>
-      <input type="radio" name="massage" value="Aromatherapy" required> Aromatherapy – Essential oils
-    </div>
-    <div>
-      <input type="radio" name="massage" value="Hot Stone" required> Hot Stone – Warm stone therapy
-    </div>
+    {% else %}
+    <p>No treatments have been added yet. Please check back soon.</p>
+    {% endfor %}
     <button type="submit">Continue</button>
   </form><br>
 

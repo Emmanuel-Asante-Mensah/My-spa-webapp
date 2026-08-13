@@ -5,7 +5,18 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <h2>Admin Panel</h2>
+  <header>
+    <h1>Welcome to Spa</h1>
+    <nav>
+      <a href="{{ url_for('home') }}">Home</a>
+      <a href="{{ url_for('admin') }}">Bookings</a>
+      <a href="{{ url_for('admin_therapists') }}">Therapists</a>
+      <a href="{{ url_for('admin_treatments') }}">Treatments</a>
+      <a href="{{ url_for('logout') }}">Logout</a>
+    </nav>
+  </header>
+
+  <h2>Admin Panel — Bookings</h2>
   <table border="1" style="margin:auto;">
     <tr>
       <th>Customer</th>
@@ -16,7 +27,9 @@
       <th>Date</th>
       <th>Time</th>
       <th>Payment Method</th>
-      <th>Status</th>
+      <th>Payment Status</th>
+      <th>Service Status</th>
+      <th>Update</th>
     </tr>
     {% for booking in bookings %}
     <tr>
@@ -28,8 +41,24 @@
       <td>{{ booking.date }}</td>
       <td>{{ booking.time }}</td>
       <td>{{ booking.payment_method }}</td>
-      <td>{{ booking.payment_status }}</td>
+      <td><span class="status-badge status-{{ booking.payment_status|lower }}">{{ booking.payment_status }}</span></td>
+      <td><span class="status-badge status-{{ booking.service_status|lower }}">{{ booking.service_status }}</span></td>
+      <td>
+        <form method="POST" action="{{ url_for('update_booking_status', booking_id=booking.id) }}" class="admin-status-form">
+          <select name="payment_status">
+            <option value="Unpaid" {% if booking.payment_status == 'Unpaid' %}selected{% endif %}>Unpaid</option>
+            <option value="Paid" {% if booking.payment_status == 'Paid' %}selected{% endif %}>Paid</option>
+          </select>
+          <select name="service_status">
+            <option value="Pending" {% if booking.service_status == 'Pending' %}selected{% endif %}>Pending</option>
+            <option value="Done" {% if booking.service_status == 'Done' %}selected{% endif %}>Done</option>
+          </select>
+          <button type="submit">Save</button>
+        </form>
+      </td>
     </tr>
+    {% else %}
+    <tr><td colspan="11">No bookings yet.</td></tr>
     {% endfor %}
   </table>
 </body>

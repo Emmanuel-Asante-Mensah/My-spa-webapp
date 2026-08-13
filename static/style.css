@@ -134,3 +134,134 @@ ul li {
   border-radius: 6px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
+
+/* Therapist selection grid (booking flow + admin management) */
+.therapist-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+  max-width: 900px;
+  margin: 20px auto;
+}
+
+.therapist-card {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  padding: 15px;
+  width: 200px;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.therapist-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+}
+
+.therapist-card input[type="radio"] {
+  margin-bottom: 10px;
+}
+
+.therapist-card img,
+.therapist-photo-placeholder {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.therapist-photo-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e9eef0;
+  color: #999;
+  font-size: 0.9em;
+}
+
+.therapist-name {
+  font-weight: bold;
+  color: #444;
+}
+
+.therapist-specialty {
+  color: #777;
+  font-size: 0.9em;
+}
+
+/* Status badges */
+.status-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.85em;
+  font-weight: bold;
+  color: white;
+}
+
+.status-paid, .status-done {
+  background: #4caf50;
+}
+
+.status-unpaid, .status-pending {
+  background: #e0a01a;
+}
+
+/* Admin forms */
+.admin-add-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  max-width: 700px;
+  margin: 15px auto 30px;
+}
+
+.admin-add-form input {
+  width: auto;
+  flex: 1;
+  min-width: 150px;
+  margin: 0;
+}
+
+.admin-status-form {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-status-form select,
+.admin-status-form button {
+  padding: 4px 6px;
+  font-size: 0.85em;
+}
+
+.delete-btn {
+  background: #c0392b;
+  margin-top: 10px;
+}
+
+.delete-btn:hover {
+  background: #922b21;
+}
+
+.flash-messages {
+  max-width: 500px;
+  margin: 15px auto;
+  list-style: none;
+  padding: 0;
+}
+
+.flash-messages li {
+  background: #fff3cd;
+  border: 1px solid #ffe082;
+  padding: 10px;
+  border-radius: 6px;
+  margin: 5px 0;
+}

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Manage Therapists</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header>
+    <h1>Welcome to Spa</h1>
+    <nav>
+      <a href="{{ url_for('home') }}">Home</a>
+      <a href="{{ url_for('admin') }}">Bookings</a>
+      <a href="{{ url_for('admin_therapists') }}">Therapists</a>
+      <a href="{{ url_for('admin_treatments') }}">Treatments</a>
+      <a href="{{ url_for('logout') }}">Logout</a>
+    </nav>
+  </header>
+
+  <h2>Manage Therapists</h2>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <ul class="flash-messages">
+        {% for m in messages %}<li>{{ m }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  <form method="POST" action="{{ url_for('admin_therapists') }}" enctype="multipart/form-data" class="admin-add-form">
+    <input type="text" name="name" placeholder="Therapist Name" required>
+    <input type="text" name="specialty" placeholder="Specialty (e.g. Deep Tissue)">
+    <input type="file" name="image" accept="image/*">
+    <button type="submit">Add Therapist</button>
+  </form>
+
+  <div class="therapist-grid">
+    {% for t in therapists %}
+    <div class="therapist-card">
+      {% if t.image_filename %}
+        <img src="{{ url_for('static', filename='uploads/therapists/' + t.image_filename) }}" alt="{{ t.name }}">
+      {% else %}
+        <div class="therapist-photo-placeholder">No Photo</div>
+      {% endif %}
+      <div class="therapist-name">{{ t.name }}</div>
+      <div class="therapist-specialty">{{ t.specialty }}</div>
+      <form method="POST" action="{{ url_for('delete_therapist', therapist_id=t.id) }}">
+        <button type="submit" class="delete-btn">Remove</button>
+      </form>
+    </div>
+    {% else %}
+    <p>No therapists added yet.</p>
+    {% endfor %}
+  </div>
+
+  <a href="{{ url_for('admin') }}" class="back-btn">Back to Bookings</a>
+</body>
+</html>

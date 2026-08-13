@@ -13,7 +13,7 @@
       <a href="{{ url_for('admin') }}">Admin</a>
     </nav>
   </header>
-  
+
     <div class="progress-container">
         <div class="progress-step {% if step == 1 %}active{% endif %}">1. Therapist</div>
         <div class="progress-step {% if step == 2 %}active{% endif %}">2. Treatment</div>
@@ -24,12 +24,15 @@
 
   <h2>Payment Method</h2>
   <form method="POST" action="{{ url_for('payment') }}">
-    <select name="payment" required>
-      <option value="Visa">Visa</option>
-      <option value="MoMo">MoMo</option>
-      <option value="PayPal">PayPal</option>
-    </select><br>
-    <button type="submit">Confirm & Pay</button>
+    <div class="card">
+      <input type="radio" id="pay-online" name="payment_method" value="Online" required>
+      <label for="pay-online"><strong>Pay Online</strong><br>Pay now by card or mobile money. Your booking is marked Paid immediately.</label>
+    </div><br>
+    <div class="card">
+      <input type="radio" id="pay-in-person" name="payment_method" value="In Person" required>
+      <label for="pay-in-person"><strong>Pay In Person</strong><br>Pay at the spa when you arrive. Your booking stays Unpaid until then.</label>
+    </div>
+    <button type="submit">Confirm Booking</button>
   </form>
 
 <h3>Previously Selected:</h3>

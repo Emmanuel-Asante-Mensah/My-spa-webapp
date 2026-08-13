@@ -25,16 +25,23 @@
   </div>
 
   <h2>Choose Your Therapist</h2>
-  <!-- IMPORTANT: action points to 'treatment' route -->
   <form method="POST" action="{{ url_for('therapist') }}">
-    <div class="card">
-      <input type="radio" name="therapist" value="Maya Chen" required>
-      <label>Maya Chen – Deep Tissue</label>
-    </div><br>
-    <div class="card">
-      <input type="radio" name="therapist" value="Elena Osei" required>
-      <label>Elena Osei – Swedish</label>
-    </div><br>
+    <div class="therapist-grid">
+      {% for t in therapists %}
+      <label class="therapist-card">
+        <input type="radio" name="therapist" value="{{ t.name }}" required>
+        {% if t.image_filename %}
+          <img src="{{ url_for('static', filename='uploads/therapists/' + t.image_filename) }}" alt="{{ t.name }}">
+        {% else %}
+          <div class="therapist-photo-placeholder">No Photo</div>
+        {% endif %}
+        <div class="therapist-name">{{ t.name }}</div>
+        <div class="therapist-specialty">{{ t.specialty }}</div>
+      </label>
+      {% else %}
+      <p>No therapists have been added yet. Please check back soon.</p>
+      {% endfor %}
+    </div>
     <button type="submit">Continue</button>
   </form>
 </body>
