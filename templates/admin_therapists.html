@@ -12,6 +12,9 @@
       <a href="{{ url_for('admin') }}">Bookings</a>
       <a href="{{ url_for('admin_therapists') }}">Therapists</a>
       <a href="{{ url_for('admin_treatments') }}">Treatments</a>
+      <a href="{{ url_for('admin_complaints') }}">Complaints</a>
+      <a href="{{ url_for('admin_history') }}">History</a>
+      <a href="{{ url_for('admin_analytics') }}">Analytics</a>
       <a href="{{ url_for('logout') }}">Logout</a>
     </nav>
   </header>
@@ -30,6 +33,14 @@
     <input type="text" name="name" placeholder="Therapist Name" required>
     <input type="text" name="specialty" placeholder="Specialty (e.g. Deep Tissue)">
     <input type="file" name="image" accept="image/*">
+    <div style="width:100%; text-align:center;">
+      <p style="margin:5px 0; color:#555;">Treatments this therapist performs:</p>
+      {% for t in treatments %}
+        <label style="margin-right:10px;"><input type="checkbox" name="treatment_ids" value="{{ t.id }}"> {{ t.name }}</label>
+      {% else %}
+        <span style="color:#999;">Add treatments first, then come back to assign them.</span>
+      {% endfor %}
+    </div>
     <button type="submit">Add Therapist</button>
   </form>
 
@@ -43,6 +54,13 @@
       {% endif %}
       <div class="therapist-name">{{ t.name }}</div>
       <div class="therapist-specialty">{{ t.specialty }}</div>
+      <div class="therapist-specialty">
+        {% if t.treatments %}
+          Does: {{ t.treatments | map(attribute='name') | join(', ') }}
+        {% else %}
+          No treatments assigned yet
+        {% endif %}
+      </div>
       <form method="POST" action="{{ url_for('delete_therapist', therapist_id=t.id) }}">
         <button type="submit" class="delete-btn">Remove</button>
       </form>

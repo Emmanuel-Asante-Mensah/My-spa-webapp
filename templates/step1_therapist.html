@@ -10,15 +10,15 @@
     <h1>Welcome to Spa</h1>
     <nav>
       <a href="{{ url_for('home') }}">Home</a>
-      <a href="{{ url_for('therapist') }}">Book Now</a>
-      <a href="{{ url_for('admin') }}">Admin</a>
+      <a href="{{ url_for('treatment') }}">Book Now</a>
+      <a href="{{ url_for('complaints') }}">Feedback</a>
     </nav>
   </header>
 
   <!-- Progress bar -->
   <div class="progress-container">
-    <div class="progress-step {% if step == 1 %}active{% endif %}">1. Therapist</div>
-    <div class="progress-step {% if step == 2 %}active{% endif %}">2. Treatment</div>
+    <div class="progress-step {% if step == 1 %}active{% endif %}">1. Treatment</div>
+    <div class="progress-step {% if step == 2 %}active{% endif %}">2. Therapist</div>
     <div class="progress-step {% if step == 3 %}active{% endif %}">3. Date & Time</div>
     <div class="progress-step {% if step == 4 %}active{% endif %}">4. Your Details</div>
     <div class="progress-step {% if step == 5 %}active{% endif %}">5. Payment</div>
@@ -27,6 +27,12 @@
   <h2>Choose Your Therapist</h2>
   <form method="POST" action="{{ url_for('therapist') }}">
     <div class="therapist-grid">
+      <label class="therapist-card">
+        <input type="radio" name="therapist" value="Anyone" required>
+        <div class="therapist-photo-placeholder">Any Therapist</div>
+        <div class="therapist-name">No Preference</div>
+        <div class="therapist-specialty">First available therapist for this treatment</div>
+      </label>
       {% for t in therapists %}
       <label class="therapist-card">
         <input type="radio" name="therapist" value="{{ t.name }}" required>
@@ -43,6 +49,13 @@
       {% endfor %}
     </div>
     <button type="submit">Continue</button>
-  </form>
+  </form><br>
+
+  <h3>Previously Selected:</h3>
+  <ul>
+    <li>Treatment: {{ massage }}</li>
+  </ul>
+
+  <a href="{{ url_for('treatment') }}" class="back-btn">Back</a>
 </body>
 </html>

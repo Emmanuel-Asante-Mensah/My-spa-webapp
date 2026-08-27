@@ -12,6 +12,9 @@
       <a href="{{ url_for('admin') }}">Bookings</a>
       <a href="{{ url_for('admin_therapists') }}">Therapists</a>
       <a href="{{ url_for('admin_treatments') }}">Treatments</a>
+      <a href="{{ url_for('admin_complaints') }}">Complaints</a>
+      <a href="{{ url_for('admin_history') }}">History</a>
+      <a href="{{ url_for('admin_analytics') }}">Analytics</a>
       <a href="{{ url_for('logout') }}">Logout</a>
     </nav>
   </header>
@@ -29,6 +32,7 @@
   <form method="POST" action="{{ url_for('admin_treatments') }}" class="admin-add-form">
     <input type="text" name="name" placeholder="Treatment Name" required>
     <input type="text" name="description" placeholder="Short description">
+    <input type="number" name="price" placeholder="Price (GHS)" min="0" step="0.01">
     <button type="submit">Add Treatment</button>
   </form>
 
@@ -36,6 +40,7 @@
     {% for t in treatments %}
     <li>
       <strong>{{ t.name }}</strong>{% if t.description %} – {{ t.description }}{% endif %}
+      — GHS {{ '%.2f' | format(t.price or 0) }}
       <form method="POST" action="{{ url_for('delete_treatment', treatment_id=t.id) }}" style="display:inline;">
         <button type="submit" class="delete-btn">Remove</button>
       </form>

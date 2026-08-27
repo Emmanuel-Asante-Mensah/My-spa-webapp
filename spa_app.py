@@ -1,7 +1,10 @@
 import os
+import datetime as dt
+from datetime import timedelta
+import requests
 from flask import Flask, render_template, request, redirect, url_for, session, flash, abort
 from werkzeug.utils import secure_filename
-from models import db, Booking, User, Therapist, Treatment
+from models import db, Booking, BookingHistory, Complaint, User, Therapist, Treatment
 from config import Config
 from flask_migrate import Migrate
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
@@ -13,9 +16,24 @@ app.config.from_object(Config)
 db.init_app(app)
 migrate = Migrate(app, db)
 app.secret_key = "your_secret_key"  # Needed for sessions
+
+# Admin sessions expire after a period of inactivity. This matters because
+# the admin dashboard is only ever protected by @login_required + this
+# session cookie - if a staff member leaves it logged in on a shared/kiosk
+# browser, we don't want that login to stay valid for whoever uses the
+# browser next. Combined with session.permanent = True set at login time,
+# Flask expires the session automatically after this window.
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=20)
+
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login"  # Redirects unauthorized users
+
+# Spa opening hours - bookings can only be made within this window.
+OPENING_HOUR = 8   # 8:00 AM
+CLOSING_HOUR = 22  # 10:00 PM
+
+PAYSTACK_BASE_URL = "https://api.paystack.co"
 
 
 @login_manager.user_loader
@@ -30,6 +48,58 @@ def allowed_image(filename):
     )
 
 
+def log_change(booking_id, field, old_value, new_value, changed_by="system"):
+    """Record an entry in the booking audit trail. No-ops if nothing changed."""
+    if str(old_value) == str(new_value):
+        return
+    db.session.add(BookingHistory(
+        booking_id=booking_id,
+        field_changed=field,
+        old_value=str(old_value) if old_value is not None else None,
+        new_value=str(new_value) if new_value is not None else None,
+        changed_by=changed_by,
+    ))
+
+
+# ---------- Paystack helpers ----------
+# Docs: https://paystack.com/docs/payments/split-payments/ and
+# https://paystack.com/docs/api/transaction/
+
+def paystack_headers():
+    return {
+        "Authorization": f"Bearer {app.config['PAYSTACK_SECRET_KEY']}",
+        "Content-Type": "application/json",
+    }
+
+
+def paystack_initialize(email, amount_ghs, callback_url, subaccount=None, transaction_charge=None, metadata=None):
+    """Start a Paystack transaction. Amount is in GHS; Paystack wants pesewas (x100).
+    If `subaccount` is set, the payment is split: `transaction_charge` (GHS) stays
+    with your main account and the remainder goes to the subaccount."""
+    payload = {
+        "email": email,
+        "amount": int(round(amount_ghs * 100)),
+        "currency": "GHS",
+        "callback_url": callback_url,
+    }
+    if subaccount:
+        payload["subaccount"] = subaccount
+    if transaction_charge is not None:
+        payload["transaction_charge"] = int(round(transaction_charge * 100))
+    if metadata:
+        payload["metadata"] = metadata
+
+    resp = requests.post(f"{PAYSTACK_BASE_URL}/transaction/initialize",
+                          json=payload, headers=paystack_headers(), timeout=15)
+    return resp.json()
+
+
+def paystack_verify(reference):
+    resp = requests.get(f"{PAYSTACK_BASE_URL}/transaction/verify/{reference}",
+                         headers=paystack_headers(), timeout=15)
+    return resp.json()
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -38,6 +108,9 @@ def login():
         user = User.query.filter_by(username=username).first()
         if user and check_password_hash(user.password, password):
             login_user(user)
+            # Make this an expiring session (see PERMANENT_SESSION_LIFETIME
+            # above) rather than one that stays valid indefinitely.
+            session.permanent = True
             return redirect(url_for('admin'))
         else:
             return "Invalid credentials"
@@ -50,36 +123,70 @@ def home():
 
 
 # ---------- Booking flow ----------
-
-@app.route('/therapist', methods=['GET', 'POST'])
-def therapist():
-    if request.method == 'POST':
-        session['therapist'] = request.form['therapist']
-        return redirect(url_for('treatment'))
-    therapists = Therapist.query.all()
-    return render_template('step1_therapist.html', step=1, therapists=therapists)
-
+# Order: Treatment -> Therapist (filtered by treatment) -> Date/Time -> Details -> Payment
+# Customers pick *what* they want done before *who* does it, and the
+# therapist list on step 2 only shows people who actually perform that
+# treatment (plus an "Any Therapist" option).
 
 @app.route('/treatment', methods=['GET', 'POST'])
 def treatment():
     if request.method == 'POST':
         session['massage'] = request.form['massage']
-        return redirect(url_for('datetime'))
+        # Changing the treatment invalidates whichever therapist was
+        # previously picked for the old treatment.
+        session.pop('therapist', None)
+        return redirect(url_for('therapist'))
     treatments = Treatment.query.all()
-    return render_template('step2_treatment.html', step=2,
-                            therapist=session.get('therapist'),
-                            treatments=treatments)
+    return render_template('step2_treatment.html', step=1, treatments=treatments)
+
+
+@app.route('/therapist', methods=['GET', 'POST'])
+def therapist():
+    if not session.get('massage'):
+        return redirect(url_for('treatment'))
+
+    if request.method == 'POST':
+        session['therapist'] = request.form['therapist']
+        return redirect(url_for('datetime'))
+
+    chosen_treatment = Treatment.query.filter_by(name=session['massage']).first()
+    if chosen_treatment and chosen_treatment.therapists:
+        therapists = chosen_treatment.therapists
+    else:
+        # No therapist has been specifically assigned to this treatment yet,
+        # so fall back to showing everyone rather than an empty page.
+        therapists = Therapist.query.all()
+
+    return render_template('step1_therapist.html', step=2,
+                            massage=session.get('massage'),
+                            therapists=therapists)
 
 
 @app.route('/datetime', methods=['GET', 'POST'])
 def datetime():
     if request.method == 'POST':
-        session['date'] = request.form['date']
-        session['time'] = request.form['time']
+        date_str = request.form['date']
+        time_str = request.form['time']
+
+        # Enforce spa opening hours (8:00 AM - 10:00 PM).
+        try:
+            hour, minute = (int(part) for part in time_str.split(':')[:2])
+        except (ValueError, AttributeError):
+            flash("Please choose a valid time.")
+            return redirect(url_for('datetime'))
+
+        if not (OPENING_HOUR * 60 <= hour * 60 + minute <= CLOSING_HOUR * 60):
+            flash(f"We're only open for bookings between {OPENING_HOUR}:00 AM and {CLOSING_HOUR - 12}:00 PM. Please pick a time in that window.")
+            return redirect(url_for('datetime'))
+
+        session['date'] = date_str
+        session['time'] = time_str
         return redirect(url_for('details'))
     return render_template('step3_datetime.html', step=3,
                             therapist=session.get('therapist'),
-                            massage=session.get('massage'))
+                            massage=session.get('massage'),
+                            opening_hour=OPENING_HOUR,
+                            closing_hour=CLOSING_HOUR)
 
 
 @app.route('/details', methods=['GET', 'POST'])
@@ -101,11 +208,6 @@ def payment():
     if request.method == 'POST':
         payment_method = request.form['payment_method']  # "Online" or "In Person"
 
-        # Paying online settles the balance immediately.
-        # Paying in person leaves it unpaid until the front desk collects payment,
-        # and the service still needs to be carried out either way.
-        payment_status = "Paid" if payment_method == "Online" else "Unpaid"
-
         new_booking = Booking(
             customer_name=session['name'],
             customer_email=session['email'],
@@ -115,12 +217,47 @@ def payment():
             date=session['date'],
             time=session['time'],
             payment_method=payment_method,
-            payment_status=payment_status,
-            service_status="Pending"
+            payment_status="Unpaid",
+            service_status="Pending",
         )
         db.session.add(new_booking)
         db.session.commit()
-        return redirect(url_for('confirmation', booking_id=new_booking.id))
+        log_change(new_booking.id, "booking", None, "created", changed_by="customer")
+        db.session.commit()
+
+        if payment_method == "Online":
+            if not app.config.get('PAYSTACK_SECRET_KEY') or not app.config.get('PAYSTACK_SUBACCOUNT_CODE'):
+                flash("Online payment isn't set up yet - please choose 'Pay In Person' for now.")
+                return redirect(url_for('payment'))
+
+            chosen_treatment = Treatment.query.filter_by(name=new_booking.massage_type).first()
+            amount = chosen_treatment.price if chosen_treatment and chosen_treatment.price else 0
+            if amount <= app.config['COMMISSION_GHS']:
+                flash("This treatment doesn't have a valid price set up for online payment yet. Please choose 'Pay In Person', or contact the spa.")
+                return redirect(url_for('payment'))
+
+            result = paystack_initialize(
+                email=new_booking.customer_email,
+                amount_ghs=amount,
+                callback_url=url_for('payment_callback', _external=True),
+                subaccount=app.config['PAYSTACK_SUBACCOUNT_CODE'],
+                transaction_charge=app.config['COMMISSION_GHS'],
+                metadata={"booking_id": new_booking.id},
+            )
+            if result.get('status'):
+                new_booking.payment_reference = result['data']['reference']
+                db.session.commit()
+                return redirect(result['data']['authorization_url'])
+
+            flash("We couldn't start the online payment. Please try again or pay in person.")
+            return redirect(url_for('payment'))
+
+        # In-person: the booking is confirmed now; payment gets settled (and
+        # the commission paid) later from the admin dashboard.
+        booking_id = new_booking.id
+        session.clear()
+        return redirect(url_for('confirmation', booking_id=booking_id))
+
     return render_template('step5_payment.html', step=5,
                             therapist=session.get('therapist'),
                             massage=session.get('massage'),
@@ -131,13 +268,61 @@ def payment():
                             phone=session.get('phone'))
 
 
+@app.route('/payment/callback')
+def payment_callback():
+    """Paystack redirects the customer's browser back here after checkout."""
+    reference = request.args.get('reference')
+    if not reference:
+        flash("Missing payment reference.")
+        return redirect(url_for('home'))
+
+    booking = Booking.query.filter_by(payment_reference=reference).first_or_404()
+
+    result = paystack_verify(reference)
+    if result.get('status') and result.get('data', {}).get('status') == 'success':
+        old_status = booking.payment_status
+        booking.payment_status = "Paid"
+        log_change(booking.id, "payment_status", old_status, "Paid", changed_by="customer (online payment)")
+        db.session.commit()
+    else:
+        flash("We couldn't verify your payment. If money left your account, contact the spa with your booking details.")
+
+    session.clear()
+    return redirect(url_for('confirmation', booking_id=booking.id))
+
+
 @app.route('/confirmation/<int:booking_id>')
 def confirmation(booking_id):
     booking = Booking.query.get_or_404(booking_id)
     return render_template('confirmation.html', booking=booking)
 
 
+# ---------- Customer complaints / feedback ----------
+
+@app.route('/complaints', methods=['GET', 'POST'])
+def complaints():
+    if request.method == 'POST':
+        message = request.form.get('message', '').strip()
+        if not message:
+            flash("Please enter your comment or complaint before submitting.")
+            return redirect(url_for('complaints'))
+
+        db.session.add(Complaint(
+            name=request.form.get('name', '').strip() or None,
+            email=request.form.get('email', '').strip() or None,
+            phone=request.form.get('phone', '').strip() or None,
+            message=message,
+        ))
+        db.session.commit()
+        flash("Thank you - your feedback has been received.")
+        return redirect(url_for('complaints'))
+    return render_template('complaints.html')
+
+
 # ---------- Admin: bookings ----------
+# Every /admin* route below is gated by @login_required. There is no link
+# to any of these pages anywhere in the customer-facing templates - staff
+# reach /login by typing/bookmarking the URL directly.
 
 @app.route('/admin')
 @login_required
@@ -154,13 +339,121 @@ def update_booking_status(booking_id):
     payment_status = request.form.get('payment_status')
     service_status = request.form.get('service_status')
 
-    if payment_status in ('Paid', 'Unpaid'):
-        booking.payment_status = payment_status
-    if service_status in ('Pending', 'Done'):
+    if payment_status in ('Paid', 'Unpaid') and payment_status != booking.payment_status:
+        if payment_status == 'Paid' and booking.payment_method == 'In Person' and not booking.commission_paid:
+            flash(f"Settle the {app.config['COMMISSION_GHS']} GHS commission for this booking first (use 'Pay Commission' below), then mark it Paid.")
+        else:
+            log_change(booking.id, "payment_status", booking.payment_status, payment_status, changed_by=current_user.username)
+            booking.payment_status = payment_status
+
+    if service_status in ('Pending', 'Done') and service_status != booking.service_status:
+        log_change(booking.id, "service_status", booking.service_status, service_status, changed_by=current_user.username)
         booking.service_status = service_status
 
     db.session.commit()
     return redirect(url_for('admin'))
+
+
+@app.route('/admin/booking/<int:booking_id>/pay-commission')
+@login_required
+def pay_commission(booking_id):
+    """Admin-initiated Paystack payment: the spa pays your commission
+    directly (no split) for an in-person booking. Marking the booking Paid
+    is blocked until this succeeds."""
+    booking = Booking.query.get_or_404(booking_id)
+
+    if booking.commission_paid:
+        flash("Commission already settled for this booking.")
+        return redirect(url_for('admin'))
+
+    if not app.config.get('PAYSTACK_SECRET_KEY'):
+        flash("Paystack isn't configured yet - add PAYSTACK_SECRET_KEY to enable commission payments.")
+        return redirect(url_for('admin'))
+
+    admin_email = current_user.username if '@' in current_user.username else f"{current_user.username}@spa.local"
+    result = paystack_initialize(
+        email=admin_email,
+        amount_ghs=app.config['COMMISSION_GHS'],
+        callback_url=url_for('commission_callback', booking_id=booking.id, _external=True),
+        metadata={"booking_id": booking.id, "type": "commission"},
+    )
+    if result.get('status'):
+        booking.commission_reference = result['data']['reference']
+        db.session.commit()
+        return redirect(result['data']['authorization_url'])
+
+    flash("Couldn't start the commission payment. Please try again.")
+    return redirect(url_for('admin'))
+
+
+@app.route('/admin/booking/<int:booking_id>/commission-callback')
+@login_required
+def commission_callback(booking_id):
+    booking = Booking.query.get_or_404(booking_id)
+    reference = request.args.get('reference') or booking.commission_reference
+
+    result = paystack_verify(reference) if reference else {}
+    if result.get('status') and result.get('data', {}).get('status') == 'success':
+        log_change(booking.id, "commission_paid", booking.commission_paid, True, changed_by=current_user.username)
+        booking.commission_paid = True
+        db.session.commit()
+        flash("Commission payment confirmed - you can now mark this booking Paid.")
+    else:
+        flash("Commission payment couldn't be verified. Please try again.")
+
+    return redirect(url_for('admin'))
+
+
+@app.route('/admin/history')
+@login_required
+def admin_history():
+    booking_id = request.args.get('booking_id', type=int)
+    query = BookingHistory.query.order_by(BookingHistory.timestamp.desc())
+    if booking_id:
+        query = query.filter_by(booking_id=booking_id)
+    history = query.all()
+    return render_template('admin_history.html', history=history, booking_id=booking_id)
+
+
+@app.route('/admin/analytics')
+@login_required
+def admin_analytics():
+    bookings = Booking.query.all()
+
+    day_order = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    day_counts = {d: 0 for d in day_order}
+    hour_counts = {h: 0 for h in range(24)}
+
+    for b in bookings:
+        try:
+            parsed_date = dt.datetime.strptime(b.date, "%Y-%m-%d")
+            day_label = parsed_date.strftime("%a")
+            if day_label in day_counts:
+                day_counts[day_label] += 1
+        except (ValueError, TypeError):
+            pass
+        try:
+            hour = int(b.time.split(':')[0])
+            if hour in hour_counts:
+                hour_counts[hour] += 1
+        except (ValueError, AttributeError, IndexError):
+            pass
+
+    return render_template(
+        'admin_analytics.html',
+        day_labels=day_order,
+        day_values=[day_counts[d] for d in day_order],
+        hour_labels=[f"{h:02d}:00" for h in hour_counts.keys()],
+        hour_values=list(hour_counts.values()),
+        total_bookings=len(bookings),
+    )
+
+
+@app.route('/admin/complaints')
+@login_required
+def admin_complaints():
+    complaint_list = Complaint.query.order_by(Complaint.created_at.desc()).all()
+    return render_template('admin_complaints.html', complaints=complaint_list)
 
 
 # ---------- Admin: therapists ----------
@@ -172,6 +465,7 @@ def admin_therapists():
         name = request.form.get('name', '').strip()
         specialty = request.form.get('specialty', '').strip()
         image_file = request.files.get('image')
+        treatment_ids = request.form.getlist('treatment_ids')
 
         if not name:
             flash("Therapist name is required.")
@@ -189,13 +483,19 @@ def admin_therapists():
             image_file.save(os.path.join(app.config['UPLOAD_FOLDER'], image_filename))
 
         new_therapist = Therapist(name=name, specialty=specialty, image_filename=image_filename)
+        if treatment_ids:
+            new_therapist.treatments = Treatment.query.filter(
+                Treatment.id.in_(treatment_ids)
+            ).all()
+
         db.session.add(new_therapist)
         db.session.commit()
         flash(f"Added therapist {name}.")
         return redirect(url_for('admin_therapists'))
 
     therapists = Therapist.query.all()
-    return render_template('admin_therapists.html', therapists=therapists)
+    treatments = Treatment.query.all()
+    return render_template('admin_therapists.html', therapists=therapists, treatments=treatments)
 
 
 @app.route('/admin/therapists/<int:therapist_id>/delete', methods=['POST'])
@@ -219,12 +519,19 @@ def admin_treatments():
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
         description = request.form.get('description', '').strip()
+        price_raw = request.form.get('price', '').strip()
 
         if not name:
             flash("Treatment name is required.")
             return redirect(url_for('admin_treatments'))
 
-        new_treatment = Treatment(name=name, description=description)
+        try:
+            price = float(price_raw) if price_raw else 0.0
+        except ValueError:
+            flash("Price must be a number.")
+            return redirect(url_for('admin_treatments'))
+
+        new_treatment = Treatment(name=name, description=description, price=price)
         db.session.add(new_treatment)
         db.session.commit()
         flash(f"Added treatment {name}.")
@@ -253,6 +560,7 @@ def admin_logout():
 @login_required
 def logout():
     logout_user()
+    session.clear()
     return redirect(url_for('home'))
 
 

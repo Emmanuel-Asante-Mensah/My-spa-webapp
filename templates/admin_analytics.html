@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Booking Analytics</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Welcome to Spa</h1>
+    <nav>
+      <a href="{{ url_for('home') }}">Home</a>
+      <a href="{{ url_for('admin') }}">Bookings</a>
+      <a href="{{ url_for('admin_therapists') }}">Therapists</a>
+      <a href="{{ url_for('admin_treatments') }}">Treatments</a>
+      <a href="{{ url_for('admin_complaints') }}">Complaints</a>
+      <a href="{{ url_for('admin_history') }}">History</a>
+      <a href="{{ url_for('admin_analytics') }}">Analytics</a>
+      <a href="{{ url_for('logout') }}">Logout</a>
+    </nav>
+  </header>
+
+  <h2>Booking Analytics</h2>
+  <p style="text-align:center;">Total bookings: <strong>{{ total_bookings }}</strong></p>
+
+  <div style="max-width:700px; margin:30px auto;">
+    <h3 style="text-align:center;">Bookings by Day of Week</h3>
+    <canvas id="dayChart"></canvas>
+  </div>
+
+  <div style="max-width:700px; margin:40px auto;">
+    <h3 style="text-align:center;">Bookings by Time of Day</h3>
+    <canvas id="hourChart"></canvas>
+  </div>
+
+  <br>
+  <div style="text-align:center;">
+    <a href="{{ url_for('admin') }}" class="back-btn">Back to Bookings</a>
+  </div>
+
+  <script>
+    const dayLabels = JSON.parse('{{ day_labels | tojson | safe }}');
+    const dayValues = JSON.parse('{{ day_values | tojson | safe }}');
+    const hourLabels = JSON.parse('{{ hour_labels | tojson | safe }}');
+    const hourValues = JSON.parse('{{ hour_values | tojson | safe }}');
+
+    new Chart(document.getElementById('dayChart'), {
+      type: 'bar',
+      data: {
+        labels: dayLabels,
+        datasets: [{
+          label: 'Bookings',
+          data: dayValues,
+          backgroundColor: '#6ab7b7'
+        }]
+      },
+      options: {
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+        plugins: { legend: { display: false } }
+      }
+    });
+
+    new Chart(document.getElementById('hourChart'), {
+      type: 'bar',
+      data: {
+        labels: hourLabels,
+        datasets: [{
+          label: 'Bookings',
+          data: hourValues,
+          backgroundColor: '#4f9a94'
+        }]
+      },
+      options: {
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+        plugins: { legend: { display: false } }
+      }
+    });
+  </script>
+</body>
+</html>

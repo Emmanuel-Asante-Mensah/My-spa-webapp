@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Booking History</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header>
+    <h1>Welcome to Spa</h1>
+    <nav>
+      <a href="{{ url_for('home') }}">Home</a>
+      <a href="{{ url_for('admin') }}">Bookings</a>
+      <a href="{{ url_for('admin_therapists') }}">Therapists</a>
+      <a href="{{ url_for('admin_treatments') }}">Treatments</a>
+      <a href="{{ url_for('admin_complaints') }}">Complaints</a>
+      <a href="{{ url_for('admin_history') }}">History</a>
+      <a href="{{ url_for('admin_analytics') }}">Analytics</a>
+      <a href="{{ url_for('logout') }}">Logout</a>
+    </nav>
+  </header>
+
+  <h2>Booking Change History</h2>
+  {% if booking_id %}
+    <p style="text-align:center;">Showing changes for Booking #{{ booking_id }} only —
+      <a href="{{ url_for('admin_history') }}">view all bookings</a>
+    </p>
+  {% endif %}
+
+  <table border="1" style="margin:auto;">
+    <tr>
+      <th>When</th>
+      <th>Booking</th>
+      <th>Field</th>
+      <th>From</th>
+      <th>To</th>
+      <th>Changed By</th>
+    </tr>
+    {% for h in history %}
+    <tr>
+      <td>{{ h.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td><a href="{{ url_for('admin_history', booking_id=h.booking_id) }}">#{{ h.booking_id }}</a></td>
+      <td>{{ h.field_changed }}</td>
+      <td>{{ h.old_value or '—' }}</td>
+      <td>{{ h.new_value or '—' }}</td>
+      <td>{{ h.changed_by or '—' }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6">No changes recorded yet.</td></tr>
+    {% endfor %}
+  </table>
+
+  <br>
+  <a href="{{ url_for('admin') }}" class="back-btn">Back to Bookings</a>
+</body>
+</html>

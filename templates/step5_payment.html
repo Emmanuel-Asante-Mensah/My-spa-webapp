@@ -9,24 +9,32 @@
     <h1>Welcome to Spa</h1>
     <nav>
       <a href="{{ url_for('home') }}">Home</a>
-      <a href="{{ url_for('therapist') }}">Book Now</a>
-      <a href="{{ url_for('admin') }}">Admin</a>
+      <a href="{{ url_for('treatment') }}">Book Now</a>
+      <a href="{{ url_for('complaints') }}">Feedback</a>
     </nav>
   </header>
 
     <div class="progress-container">
-        <div class="progress-step {% if step == 1 %}active{% endif %}">1. Therapist</div>
-        <div class="progress-step {% if step == 2 %}active{% endif %}">2. Treatment</div>
+        <div class="progress-step {% if step == 1 %}active{% endif %}">1. Treatment</div>
+        <div class="progress-step {% if step == 2 %}active{% endif %}">2. Therapist</div>
         <div class="progress-step {% if step == 3 %}active{% endif %}">3. Date & Time</div>
         <div class="progress-step {% if step == 4 %}active{% endif %}">4. Your Details</div>
         <div class="progress-step {% if step == 5 %}active{% endif %}">5. Payment</div>
     </div>
 
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <ul class="flash-messages">
+        {% for m in messages %}<li>{{ m }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
   <h2>Payment Method</h2>
   <form method="POST" action="{{ url_for('payment') }}">
     <div class="card">
       <input type="radio" id="pay-online" name="payment_method" value="Online" required>
-      <label for="pay-online"><strong>Pay Online</strong><br>Pay now by card or mobile money. Your booking is marked Paid immediately.</label>
+      <label for="pay-online"><strong>Pay Online</strong><br>Pay now by card or mobile money via our secure checkout. Your booking is marked Paid immediately.</label>
     </div><br>
     <div class="card">
       <input type="radio" id="pay-in-person" name="payment_method" value="In Person" required>
@@ -37,8 +45,8 @@
 
 <h3>Previously Selected:</h3>
     <ul>
-    <li>Therapist: {{ therapist }}</li>
     <li>Massage: {{ massage }}</li>
+    <li>Therapist: {{ therapist }}</li>
     <li>Date: {{ date }}</li>
     <li>Time: {{ time }}</li>
     <li>Name: {{ name }}</li>

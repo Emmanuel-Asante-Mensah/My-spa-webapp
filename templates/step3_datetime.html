@@ -9,34 +9,43 @@
     <h1>Welcome to Spa</h1>
     <nav>
       <a href="{{ url_for('home') }}">Home</a>
-      <a href="{{ url_for('therapist') }}">Book Now</a>
-      <a href="{{ url_for('admin') }}">Admin</a>
+      <a href="{{ url_for('treatment') }}">Book Now</a>
+      <a href="{{ url_for('complaints') }}">Feedback</a>
     </nav>
   </header>
   <div class="progress-container">
-    <div class="progress-step {% if step == 1 %}active{% endif %}">1. Therapist</div>
-    <div class="progress-step {% if step == 2 %}active{% endif %}">2. Treatment</div>
+    <div class="progress-step {% if step == 1 %}active{% endif %}">1. Treatment</div>
+    <div class="progress-step {% if step == 2 %}active{% endif %}">2. Therapist</div>
     <div class="progress-step {% if step == 3 %}active{% endif %}">3. Date & Time</div>
     <div class="progress-step {% if step == 4 %}active{% endif %}">4. Your Details</div>
     <div class="progress-step {% if step == 5 %}active{% endif %}">5. Payment</div>
   </div>
 
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <ul class="flash-messages">
+        {% for m in messages %}<li>{{ m }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
   <h2>Choose Date & Time</h2>
+  <p style="text-align:center; color:#777;">We're open {{ opening_hour }}:00 AM – {{ closing_hour - 12 }}:00 PM daily.</p>
   <form method="POST" action="{{ url_for('datetime') }}">
     <label>Date:</label>
     <input type="date" name="date" required><br>
     <label>Time:</label>
-    <input type="time" name="time" required><br>
+    <input type="time" name="time" min="{{ '%02d' | format(opening_hour) }}:00" max="{{ '%02d' | format(closing_hour) }}:00" required><br>
     <button type="submit">Continue</button>
   </form><br>
 
   <h3>Previously Selected:</h3>
     <ul>
-      <li>Therapist: {{ therapist }}</li>
       <li>Massage: {{ massage }}</li>
+      <li>Therapist: {{ therapist }}</li>
     </ul>
 
 
-  <a href="{{ url_for('treatment') }}" class="back-btn">Back</a>
+  <a href="{{ url_for('therapist') }}" class="back-btn">Back</a>
 </body>
 </html>

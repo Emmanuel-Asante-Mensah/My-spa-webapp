@@ -12,9 +12,20 @@
       <a href="{{ url_for('admin') }}">Bookings</a>
       <a href="{{ url_for('admin_therapists') }}">Therapists</a>
       <a href="{{ url_for('admin_treatments') }}">Treatments</a>
+      <a href="{{ url_for('admin_complaints') }}">Complaints</a>
+      <a href="{{ url_for('admin_history') }}">History</a>
+      <a href="{{ url_for('admin_analytics') }}">Analytics</a>
       <a href="{{ url_for('logout') }}">Logout</a>
     </nav>
   </header>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <ul class="flash-messages">
+        {% for m in messages %}<li>{{ m }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
 
   <h2>Admin Panel — Bookings</h2>
   <table border="1" style="margin:auto;">
@@ -28,6 +39,7 @@
       <th>Time</th>
       <th>Payment Method</th>
       <th>Payment Status</th>
+      <th>Commission</th>
       <th>Service Status</th>
       <th>Update</th>
     </tr>
@@ -42,12 +54,23 @@
       <td>{{ booking.time }}</td>
       <td>{{ booking.payment_method }}</td>
       <td><span class="status-badge status-{{ booking.payment_status|lower }}">{{ booking.payment_status }}</span></td>
+      <td>
+        {% if booking.payment_method == 'Online' %}
+          <span class="status-badge status-done">Auto-split</span>
+        {% elif booking.commission_paid %}
+          <span class="status-badge status-done">Settled</span>
+        {% else %}
+          <a href="{{ url_for('pay_commission', booking_id=booking.id) }}" class="back-btn">Pay {{ config.COMMISSION_GHS }} GHS</a>
+        {% endif %}
+      </td>
       <td><span class="status-badge status-{{ booking.service_status|lower }}">{{ booking.service_status }}</span></td>
       <td>
         <form method="POST" action="{{ url_for('update_booking_status', booking_id=booking.id) }}" class="admin-status-form">
           <select name="payment_status">
             <option value="Unpaid" {% if booking.payment_status == 'Unpaid' %}selected{% endif %}>Unpaid</option>
+            {% if booking.payment_method == 'Online' or booking.commission_paid or booking.payment_status == 'Paid' %}
             <option value="Paid" {% if booking.payment_status == 'Paid' %}selected{% endif %}>Paid</option>
+            {% endif %}
           </select>
           <select name="service_status">
             <option value="Pending" {% if booking.service_status == 'Pending' %}selected{% endif %}>Pending</option>
@@ -58,7 +81,7 @@
       </td>
     </tr>
     {% else %}
-    <tr><td colspan="11">No bookings yet.</td></tr>
+    <tr><td colspan="12">No bookings yet.</td></tr>
     {% endfor %}
   </table>
 </body>
