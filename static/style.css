@@ -64,10 +64,90 @@ h2 {
   box-shadow: 0 4px 8px rgba(0,0,0,0.1);
   max-width: 500px;
   text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .card input {
   margin-right: 10px;
+}
+
+.card input[type="radio"] {
+  width: auto;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.card label {
+  flex: 1;
+}
+
+/* Treatment card: name/description full-width, then a row of duration
+   options below - this one is NOT a single radio row like .card, so it
+   overrides the flex layout above. */
+.treatment-card {
+  display: block;
+  max-width: 600px;
+}
+
+.treatment-name {
+  margin: 0 0 4px;
+  color: #444;
+}
+
+.treatment-desc {
+  margin: 0 0 12px;
+  color: #777;
+  font-size: 0.9em;
+}
+
+.duration-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.duration-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 6px;
+  background: #f4f7f9;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 12px 10px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.duration-option:hover {
+  background: #e9eef0;
+}
+
+.duration-option input[type="radio"] {
+  width: auto;
+  margin: 0;
+}
+
+.duration-label {
+  color: #444;
+  font-size: 0.9em;
+  line-height: 1.3;
+}
+
+.duration-price {
+  font-weight: bold;
+  color: #4f9a94;
+  white-space: nowrap;
+}
+
+.treatment-price-list {
+  color: #666;
+  font-size: 0.9em;
+  margin: 6px 0 10px;
 }
 
 /* Forms */

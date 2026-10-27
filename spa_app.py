@@ -35,6 +35,18 @@ CLOSING_HOUR = 22  # 10:00 PM
 
 PAYSTACK_BASE_URL = "https://api.paystack.co"
 
+# Duration options customers can pick per treatment. Each maps to one of
+# the four price columns on Treatment. Order matters - it's the display
+# order on the treatment page.
+DURATION_CHOICES = [
+    ("30", "30 mins or less", "price_30"),
+    ("60", "1 hour", "price_60"),
+    ("90", "1 hr 30 mins", "price_90"),
+    ("120", "2 hours", "price_120"),
+]
+DURATION_PRICE_FIELD = {code: field for code, _, field in DURATION_CHOICES}
+DURATION_LABEL = {code: label for code, label, _ in DURATION_CHOICES}
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -123,21 +135,44 @@ def home():
 
 
 # ---------- Booking flow ----------
-# Order: Treatment -> Therapist (filtered by treatment) -> Date/Time -> Details -> Payment
-# Customers pick *what* they want done before *who* does it, and the
-# therapist list on step 2 only shows people who actually perform that
-# treatment (plus an "Any Therapist" option).
+# Order: Treatment+Duration -> Therapist (filtered by treatment) -> Date/Time -> Details -> Payment
+# Customers pick *what* they want done (and for how long) before *who* does
+# it, and the therapist list on step 2 only shows people who actually
+# perform that treatment.
 
 @app.route('/treatment', methods=['GET', 'POST'])
 def treatment():
     if request.method == 'POST':
-        session['massage'] = request.form['massage']
+        # Radio value is "<treatment_id>:<duration_code>", e.g. "3:90"
+        selection = request.form.get('massage', '')
+        try:
+            treatment_id_str, duration_code = selection.split(':', 1)
+            treatment_id = int(treatment_id_str)
+        except ValueError:
+            flash("Please choose a treatment and duration.")
+            return redirect(url_for('treatment'))
+
+        chosen = Treatment.query.get(treatment_id)
+        price_field = DURATION_PRICE_FIELD.get(duration_code)
+        if not chosen or not price_field:
+            flash("Please choose a valid treatment and duration.")
+            return redirect(url_for('treatment'))
+
+        session['treatment_id'] = chosen.id
+        session['massage'] = chosen.name
+        session['duration_code'] = duration_code
+        session['duration_label'] = DURATION_LABEL[duration_code]
+        session['price'] = getattr(chosen, price_field) or 0.0
+
         # Changing the treatment invalidates whichever therapist was
         # previously picked for the old treatment.
         session.pop('therapist', None)
         return redirect(url_for('therapist'))
+
     treatments = Treatment.query.all()
-    return render_template('step2_treatment.html', step=1, treatments=treatments)
+    return render_template('step2_treatment.html', step=1,
+                            treatments=treatments,
+                            duration_choices=DURATION_CHOICES)
 
 
 @app.route('/therapist', methods=['GET', 'POST'])
@@ -149,16 +184,15 @@ def therapist():
         session['therapist'] = request.form['therapist']
         return redirect(url_for('datetime'))
 
-    chosen_treatment = Treatment.query.filter_by(name=session['massage']).first()
-    if chosen_treatment and chosen_treatment.therapists:
-        therapists = chosen_treatment.therapists
-    else:
-        # No therapist has been specifically assigned to this treatment yet,
-        # so fall back to showing everyone rather than an empty page.
-        therapists = Therapist.query.all()
+    chosen_treatment = Treatment.query.get(session.get('treatment_id'))
+    # Strict filtering: only therapists specifically assigned to this
+    # treatment are shown. No fallback to "all therapists" anymore - if
+    # nobody's assigned, the page shows an empty-state message instead.
+    therapists = chosen_treatment.therapists if chosen_treatment else []
 
     return render_template('step1_therapist.html', step=2,
                             massage=session.get('massage'),
+                            duration_label=session.get('duration_label'),
                             therapists=therapists)
 
 
@@ -185,6 +219,7 @@ def datetime():
     return render_template('step3_datetime.html', step=3,
                             therapist=session.get('therapist'),
                             massage=session.get('massage'),
+                            duration=session.get('duration_label'),
                             opening_hour=OPENING_HOUR,
                             closing_hour=CLOSING_HOUR)
 
@@ -199,6 +234,7 @@ def details():
     return render_template('step4_details.html', step=4,
                             therapist=session.get('therapist'),
                             massage=session.get('massage'),
+                            duration=session.get('duration_label'),
                             date=session.get('date'),
                             time=session.get('time'))
 
@@ -214,6 +250,7 @@ def payment():
             customer_phone=session['phone'],
             therapist=session['therapist'],
             massage_type=session['massage'],
+            duration=session.get('duration_label', '1 hour'),
             date=session['date'],
             time=session['time'],
             payment_method=payment_method,
@@ -230,10 +267,9 @@ def payment():
                 flash("Online payment isn't set up yet - please choose 'Pay In Person' for now.")
                 return redirect(url_for('payment'))
 
-            chosen_treatment = Treatment.query.filter_by(name=new_booking.massage_type).first()
-            amount = chosen_treatment.price if chosen_treatment and chosen_treatment.price else 0
+            amount = session.get('price') or 0
             if amount <= app.config['COMMISSION_GHS']:
-                flash("This treatment doesn't have a valid price set up for online payment yet. Please choose 'Pay In Person', or contact the spa.")
+                flash("This treatment/duration doesn't have a valid price set up for online payment yet. Please choose 'Pay In Person', or contact the spa.")
                 return redirect(url_for('payment'))
 
             result = paystack_initialize(
@@ -261,6 +297,7 @@ def payment():
     return render_template('step5_payment.html', step=5,
                             therapist=session.get('therapist'),
                             massage=session.get('massage'),
+                            duration=session.get('duration_label'),
                             date=session.get('date'),
                             time=session.get('time'),
                             name=session.get('name'),
@@ -519,19 +556,35 @@ def admin_treatments():
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
         description = request.form.get('description', '').strip()
-        price_raw = request.form.get('price', '').strip()
 
         if not name:
             flash("Treatment name is required.")
             return redirect(url_for('admin_treatments'))
 
-        try:
-            price = float(price_raw) if price_raw else 0.0
-        except ValueError:
-            flash("Price must be a number.")
+        def parse_price(field_name):
+            raw = request.form.get(field_name, '').strip()
+            try:
+                return float(raw) if raw else 0.0
+            except ValueError:
+                return None
+
+        price_30 = parse_price('price_30')
+        price_60 = parse_price('price_60')
+        price_90 = parse_price('price_90')
+        price_120 = parse_price('price_120')
+
+        if None in (price_30, price_60, price_90, price_120):
+            flash("Prices must be numbers.")
             return redirect(url_for('admin_treatments'))
 
-        new_treatment = Treatment(name=name, description=description, price=price)
+        new_treatment = Treatment(
+            name=name,
+            description=description,
+            price_30=price_30,
+            price_60=price_60,
+            price_90=price_90,
+            price_120=price_120,
+        )
         db.session.add(new_treatment)
         db.session.commit()
         flash(f"Added treatment {name}.")

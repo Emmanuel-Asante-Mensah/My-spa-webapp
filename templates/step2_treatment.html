@@ -23,11 +23,21 @@
   </div>
 
   <h2>Select Massage Type</h2>
+  <p style="text-align:center; color:#777;">Pick a treatment and how long you'd like it for.</p>
   <form method="POST" action="{{ url_for('treatment') }}">
     {% for t in treatments %}
-    <div class="card">
-      <input type="radio" name="massage" value="{{ t.name }}" required>
-      <label>{{ t.name }}{% if t.description %} – {{ t.description }}{% endif %}{% if t.price %} — GHS {{ '%.2f' | format(t.price) }}{% endif %}</label>
+    <div class="card treatment-card">
+      <h3 class="treatment-name">{{ t.name }}</h3>
+      {% if t.description %}<p class="treatment-desc">{{ t.description }}</p>{% endif %}
+      <div class="duration-options">
+        {% for code, label, field in duration_choices %}
+        <label class="duration-option">
+          <input type="radio" name="massage" value="{{ t.id }}:{{ code }}" required>
+          <span class="duration-label">{{ label }}</span>
+          <span class="duration-price">GHS {{ '%.2f' | format(t[field] or 0) }}</span>
+        </label>
+        {% endfor %}
+      </div>
     </div>
     {% else %}
     <p>No treatments have been added yet. Please check back soon.</p>

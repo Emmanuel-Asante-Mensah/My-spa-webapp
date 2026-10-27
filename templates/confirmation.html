@@ -7,7 +7,7 @@
 <body>
   <h2>Booking Confirmed!</h2>
   <p>Thank you, {{ booking.customer_name }}.</p>
-  <p>Your appointment with {{ booking.therapist }} for a {{ booking.massage_type }} massage is booked.</p>
+  <p>Your appointment with {{ booking.therapist }} for a {{ booking.massage_type }} massage ({{ booking.duration }}) is booked.</p>
   <p>Date: {{ booking.date }} | Time: {{ booking.time }}</p>
   <p>Payment Method: {{ booking.payment_method }} | Payment Status:
     <span class="status-badge status-{{ booking.payment_status|lower }}">{{ booking.payment_status }}</span>

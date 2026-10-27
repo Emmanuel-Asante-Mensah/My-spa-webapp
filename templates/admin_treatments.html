@@ -8,7 +8,6 @@
   <header>
     <h1>Welcome to Spa</h1>
     <nav>
-      <a href="{{ url_for('home') }}">Home</a>
       <a href="{{ url_for('admin') }}">Bookings</a>
       <a href="{{ url_for('admin_therapists') }}">Therapists</a>
       <a href="{{ url_for('admin_treatments') }}">Treatments</a>
@@ -32,7 +31,10 @@
   <form method="POST" action="{{ url_for('admin_treatments') }}" class="admin-add-form">
     <input type="text" name="name" placeholder="Treatment Name" required>
     <input type="text" name="description" placeholder="Short description">
-    <input type="number" name="price" placeholder="Price (GHS)" min="0" step="0.01">
+    <input type="number" name="price_30" placeholder="30 mins or less (GHS)" min="0" step="0.01">
+    <input type="number" name="price_60" placeholder="1 hour (GHS)" min="0" step="0.01">
+    <input type="number" name="price_90" placeholder="1 hr 30 mins (GHS)" min="0" step="0.01">
+    <input type="number" name="price_120" placeholder="2 hours (GHS)" min="0" step="0.01">
     <button type="submit">Add Treatment</button>
   </form>
 
@@ -40,7 +42,12 @@
     {% for t in treatments %}
     <li>
       <strong>{{ t.name }}</strong>{% if t.description %} – {{ t.description }}{% endif %}
-      — GHS {{ '%.2f' | format(t.price or 0) }}
+      <div class="treatment-price-list">
+        30 min or less: GHS {{ '%.2f' | format(t.price_30 or 0) }} &nbsp;|&nbsp;
+        1 hr: GHS {{ '%.2f' | format(t.price_60 or 0) }} &nbsp;|&nbsp;
+        1 hr 30: GHS {{ '%.2f' | format(t.price_90 or 0) }} &nbsp;|&nbsp;
+        2 hr: GHS {{ '%.2f' | format(t.price_120 or 0) }}
+      </div>
       <form method="POST" action="{{ url_for('delete_treatment', treatment_id=t.id) }}" style="display:inline;">
         <button type="submit" class="delete-btn">Remove</button>
       </form>

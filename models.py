@@ -28,7 +28,14 @@ class Treatment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.String(300))
-    price = db.Column(db.Float, default=0.0)  # GHS - needed to charge online payments
+
+    # Duration-based pricing (GHS). Customers pick a treatment + duration
+    # combo on the booking page; whichever of these four applies becomes
+    # the charged amount for online payments.
+    price_30 = db.Column(db.Float, default=0.0)   # 30 mins or less
+    price_60 = db.Column(db.Float, default=0.0)   # 1 hour
+    price_90 = db.Column(db.Float, default=0.0)   # 1 hr 30 mins
+    price_120 = db.Column(db.Float, default=0.0)  # 2 hours
 
 
 class Booking(db.Model):
@@ -38,6 +45,7 @@ class Booking(db.Model):
     customer_phone = db.Column(db.String(20), nullable=False)
     therapist = db.Column(db.String(100), nullable=False)
     massage_type = db.Column(db.String(100), nullable=False)
+    duration = db.Column(db.String(20), default="1 hour")  # e.g. "30 mins or less", "1 hour"
     date = db.Column(db.String(20), nullable=False)
     time = db.Column(db.String(20), nullable=False)
     payment_method = db.Column(db.String(50), nullable=False)  # "Online" or "In Person"

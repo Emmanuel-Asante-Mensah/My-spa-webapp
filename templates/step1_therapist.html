@@ -25,14 +25,10 @@
   </div>
 
   <h2>Choose Your Therapist</h2>
+
+  {% if therapists %}
   <form method="POST" action="{{ url_for('therapist') }}">
     <div class="therapist-grid">
-      <label class="therapist-card">
-        <input type="radio" name="therapist" value="Anyone" required>
-        <div class="therapist-photo-placeholder">Any Therapist</div>
-        <div class="therapist-name">No Preference</div>
-        <div class="therapist-specialty">First available therapist for this treatment</div>
-      </label>
       {% for t in therapists %}
       <label class="therapist-card">
         <input type="radio" name="therapist" value="{{ t.name }}" required>
@@ -44,16 +40,22 @@
         <div class="therapist-name">{{ t.name }}</div>
         <div class="therapist-specialty">{{ t.specialty }}</div>
       </label>
-      {% else %}
-      <p>No therapists have been added yet. Please check back soon.</p>
       {% endfor %}
     </div>
     <button type="submit">Continue</button>
-  </form><br>
+  </form>
+  {% else %}
+  <p style="text-align:center; max-width:500px; margin: 0 auto;">
+    Sorry, no therapist currently offers this treatment. Please
+    <a href="{{ url_for('treatment') }}">choose a different treatment</a> or contact the spa directly.
+  </p>
+  {% endif %}
+  <br>
 
   <h3>Previously Selected:</h3>
   <ul>
     <li>Treatment: {{ massage }}</li>
+    {% if duration_label %}<li>Duration: {{ duration_label }}</li>{% endif %}
   </ul>
 
   <a href="{{ url_for('treatment') }}" class="back-btn">Back</a>

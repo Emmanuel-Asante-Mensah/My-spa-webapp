@@ -8,7 +8,6 @@
   <header>
     <h1>Welcome to Spa</h1>
     <nav>
-      <a href="{{ url_for('home') }}">Home</a>
       <a href="{{ url_for('admin') }}">Bookings</a>
       <a href="{{ url_for('admin_therapists') }}">Therapists</a>
       <a href="{{ url_for('admin_treatments') }}">Treatments</a>
@@ -35,6 +34,7 @@
       <th>Phone</th>
       <th>Therapist</th>
       <th>Massage Type</th>
+      <th>Duration</th>
       <th>Date</th>
       <th>Time</th>
       <th>Payment Method</th>
@@ -50,6 +50,7 @@
       <td>{{ booking.customer_phone }}</td>
       <td>{{ booking.therapist }}</td>
       <td>{{ booking.massage_type }}</td>
+      <td>{{ booking.duration }}</td>
       <td>{{ booking.date }}</td>
       <td>{{ booking.time }}</td>
       <td>{{ booking.payment_method }}</td>
@@ -81,7 +82,7 @@
       </td>
     </tr>
     {% else %}
-    <tr><td colspan="12">No bookings yet.</td></tr>
+    <tr><td colspan="13">No bookings yet.</td></tr>
     {% endfor %}
   </table>
 </body>

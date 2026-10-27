@@ -24,7 +24,7 @@
   <h2>Enter Your Details</h2>
   <form method="POST" action="{{ url_for('details') }}">
     <input type="text" name="name" placeholder="Full Name" required><br>
-    <input type="email" name="email" placeholder="Email"><br>
+    <input type="email" name="email" placeholder="Email" required><br>
     <input type="tel" name="phone" placeholder="Phone Number" required><br>
     <button type="submit">Continue</button>
   </form>
@@ -32,6 +32,7 @@
   <h3>Previously Selected:</h3>
     <ul>
     <li>Massage: {{ massage }}</li>
+    {% if duration %}<li>Duration: {{ duration }}</li>{% endif %}
     <li>Therapist: {{ therapist }}</li>
     <li>Date: {{ date }}</li>
     <li>Time: {{ time }}</li>
